@@ -45,18 +45,25 @@ class List
         self.lazy().chain(other)
     end
 
-    def each(&block)
+    # List(self) -> (A -> B) -> ()
+    def each
         head = @node[:head]
         tail = @node[:tail]
         if !head.nil?
             while !tail.empty?
-                block.(head)
+                yield head
                 x_xs = tail.x_xs()
                 head = x_xs[:x]
                 tail = x_xs[:xs]
             end
-            block.(head)
+            yield head
         end
+    end
+
+    # O(n)
+    # List(self) -> List
+    def reverse()
+        self.reduce(List.new) { |new_list, item| new_list.cons(item) }
     end
 
     def inspect()

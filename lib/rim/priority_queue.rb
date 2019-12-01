@@ -1,25 +1,27 @@
 # typed: true
 require_relative "list"
-require "sorbet-runtime"
+# require "sorbet-runtime"
 
 class BinomialTree
-    extend T::Sig
+    # extend T::Sig
     include Comparable
 
     attr_reader :data, :rank, :tree_list
 
-    # data -> key -> tree_list(linkedlist)
+    # (A, Int, LinkedList) -> BinomialTree
     def initialize(data, rank, tree_list = List.new)
         @data = data # must have <=> defined
         @rank = rank
         @tree_list = tree_list
     end
 
+    # BinomialTree(self) -> BinomialTree -> Bool
     # sig { params(other: BinomialTree)}
     def <=>(other)
         @data <=> other.data
     end
 
+    # BinomialTree(self) -> BinomialTree -> BinomialTree
     # sig { params(other: BinomialTree).returns(BinomialTree) }
     def link(other)
         if self <= other # min heap? Elem.leq?
@@ -28,12 +30,16 @@ class BinomialTree
 
         BinomialTree.new(other.data, other.rank + 1, other.tree_list.cons(self))
     end
+
+    def inspect()
+        { :data => @data, :rank => @rank, :tree_list => @tree_list }.inspect()
+    end
 end
 
 
 class BinomialHeap
 
-    # node -> List node -> List node
+    # (BinomialTree, List BinomialTree) -> List BinomialTree
     @@insert_node = ->(tree, tree_list) {
         if tree_list.empty?
             return List.new.cons(tree)
@@ -50,7 +56,8 @@ class BinomialHeap
         @@insert_node.(tree.link(x), xs)
     }
 
-    @@meld_ = ->(bh1, bh2) {
+    # (BinomialTree, Binomialtree) -> BinomialTree
+    @@meld_trees = ->(bh1, bh2) {
         if bh1.empty?
             return bh2
         end
@@ -60,17 +67,25 @@ class BinomialHeap
         end
 
         bh1_x_xs = bh1.x_xs()
-        bh2_x_xs = bh2.x_xs()
+        x1 = bh1_x_xs[:x]
+        xs1 = bh1_x_xs[:xs]
 
-        if bh1_x_xs[:x].rank < bh2_x_xs[:x].rank
-            return @@meld_.(bh1_x_xs[:xs], bh2).cons(bh1_x_xs[:x])
-        elseif bh2_x_xs[:x].rank < bh1_x_xs[:x].rank
-            return @@meld_.(bh1, bh2_x_xs[:xs]).cons(bh2_x_xs[:x])
+        bh2_x_xs = bh2.x_xs()
+        x2 = bh2_x_xs[:x]
+        xs2 = bh2_x_xs[:xs]
+
+        if x1.rank < x2.rank
+            return @@meld_trees.(xs1, bh2).cons(x1)
+        elseif x2.rank < x1.rank
+            return @@meld_trees.(bh1, xs2).cons(x2)
         end 
 
-        @insert_node.(bh1_x_xs[:x].link(bh2_x_xs[:x]), @@meld_.(bh1_x_xs[:xs], bh2_x_xs[:xs]))
+        @insert_node.(x1.link(x2), @@meld_trees.(xs1, xs2))
     }
 
+    attr_reader :trees
+
+    # List BinomialTree -> BinomialHeap
     def initialize(trees = List.new)
         @trees = trees
     end
@@ -79,17 +94,45 @@ class BinomialHeap
         @trees.nil?
     end
 
-    def insert(data) # -> BinomialHeap
+    # BinomialHeap(self) -> BinomialHeap
+    def insert(data)
         BinomialHeap.new(@@insert_node.(BinomialTree.new(data, 0), @trees))
     end
 
-    def find_min() # -> A
+    # BinomialHeap(self) -> A
+    def find_min()
+        @trees.min()&.data
     end
 
-    def delete_min() # -> BinomialHeap
+    # binomialheap(self) -> {a, binomialheap}
+    def pop_min()
+        min_node = @trees.min()
+
+        { 
+            :item => min_node.data, 
+            :remaining => Binomialheap.new(
+                @@meld_trees.(
+                    @trees.filter { |tree| tree != min_node }, 
+                    min_node.tree_list.reverse())) 
+        }
     end
 
-    def meld(other) # -> BinomialHeap
-        @@meld_.(self, other)
+    # binomialheap(self) -> binomialheap -> binomialheap
+    def meld(other) # -> binomialheap
+        binomialheap.new(@@meld_trees.(self.trees, other.trees))
+    end
+
+    # BinomialBeap(self) -> (A -> B) -> ()
+    def each
+        forest = self
+        if !forest.empty?
+            min_next = pop_min()
+            yield min_next[:item]
+            forest = min_next[:remaining]
+        end
+    end
+
+    def inspect()
+        @trees.inspect()
     end
 end
