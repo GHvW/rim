@@ -104,22 +104,22 @@ class BinomialHeap
         @trees.min()&.data
     end
 
-    # binomialheap(self) -> {a, binomialheap}
+    # BinomialHeap(self) -> {A, BinomialHeap}
     def pop_min()
         min_node = @trees.min()
 
         { 
             :item => min_node.data, 
-            :remaining => Binomialheap.new(
+            :remaining => BinomialHeap.new(
                 @@meld_trees.(
                     @trees.filter { |tree| tree != min_node }, 
                     min_node.tree_list.reverse())) 
         }
     end
 
-    # binomialheap(self) -> binomialheap -> binomialheap
-    def meld(other) # -> binomialheap
-        binomialheap.new(@@meld_trees.(self.trees, other.trees))
+    # BinomialHeap(self) -> BinomialHeap -> BinomialHeap
+    def meld(other)
+        BinomialHeap.new(@@meld_trees.(self.trees, other.trees))
     end
 
     # BinomialBeap(self) -> (A -> B) -> ()
