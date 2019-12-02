@@ -56,31 +56,31 @@ class BinomialHeap
         @@insert_node.(tree.link(x), xs)
     }
 
-    # (BinomialTree, Binomialtree) -> BinomialTree
-    @@meld_trees = ->(bh1, bh2) {
-        if bh1.empty?
-            return bh2
+    # (List BinomialTree, List Binomialtree) -> List BinomialTree
+    @@meld_trees = ->(ts1, ts2) {
+        if ts1.empty?
+            return ts2
         end
 
-        if bh2.empty?
-            return bh1
+        if ts2.empty?
+            return ts1
         end
 
-        bh1_x_xs = bh1.x_xs()
-        x1 = bh1_x_xs[:x]
-        xs1 = bh1_x_xs[:xs]
+        ts1_x_xs = ts1.x_xs()
+        x1 = ts1_x_xs[:x]
+        xs1 = ts1_x_xs[:xs]
 
-        bh2_x_xs = bh2.x_xs()
-        x2 = bh2_x_xs[:x]
-        xs2 = bh2_x_xs[:xs]
+        ts2_x_xs = ts2.x_xs()
+        x2 = ts2_x_xs[:x]
+        xs2 = ts2_x_xs[:xs]
 
         if x1.rank < x2.rank
-            return @@meld_trees.(xs1, bh2).cons(x1)
+            return @@meld_trees.(xs1, ts2).cons(x1)
         elseif x2.rank < x1.rank
-            return @@meld_trees.(bh1, xs2).cons(x2)
+            return @@meld_trees.(ts1, xs2).cons(x2)
         end 
 
-        @insert_node.(x1.link(x2), @@meld_trees.(xs1, xs2))
+        @@insert_node.(x1.link(x2), @@meld_trees.(xs1, xs2))
     }
 
     attr_reader :trees
@@ -91,7 +91,7 @@ class BinomialHeap
     end
 
     def empty?
-        @trees.nil?
+        @trees.empty?
     end
 
     # BinomialHeap(self) -> BinomialHeap
@@ -106,15 +106,46 @@ class BinomialHeap
 
     # BinomialHeap(self) -> {A, BinomialHeap}
     def pop_min()
+        # get_min = ->(forest) {
+        #     if forest.empty?
+        #         return nil
+        #     end
+
+        #     t_ts = forest.x_xs()
+        #     tree = t_ts[:x]
+        #     tree_list = t_ts[:xs]
+
+        #     if tree_list.empty?
+        #         return { :node => tree , :remaining => List.new }
+        #     end
+             
+        #     val = get_min.(tree_list).x_xs()
+        #     tree_ = val[:x]
+        #     tree_list_ = val[:xs]
+
+        #     if tree <=tree_
+        #         return { :node => tree, :remaining => tree_list }
+        #     end 
+
+        #     { :node => tree_, tree_list_.cons(tree) }
+        # }
+        
+        # item_remain = get_min.(@trees)
+        # tree = item_remain[:node]
+        # remaining_trees = item_remain[:remaining]
+
+        # @@meld_trees.(tree.children.reverse(), remaining_trees)
+
         min_node = @trees.min()
 
-        { 
-            :item => min_node.data, 
-            :remaining => BinomialHeap.new(
-                @@meld_trees.(
-                    @trees.filter { |tree| tree != min_node }, 
-                    min_node.tree_list.reverse())) 
-        }
+        remaining = BinomialHeap.new(
+            @@meld_trees.(min_node.tree_list.reverse(),
+                @trees
+                    .select { |node| node != min_node }
+                    .reduce(List.new) { |list, node| list.cons(node) } # needed until implement to_list on Enumerable
+                    .reverse()))
+
+        { :node => min_node, :remaining => remaining }
     end
 
     # BinomialHeap(self) -> BinomialHeap -> BinomialHeap
@@ -125,9 +156,9 @@ class BinomialHeap
     # BinomialBeap(self) -> (A -> B) -> ()
     def each
         forest = self
-        if !forest.empty?
-            min_next = pop_min()
-            yield min_next[:item]
+        while !forest.empty?
+            min_next = forest.pop_min()
+            yield min_next[:node].data
             forest = min_next[:remaining]
         end
     end
